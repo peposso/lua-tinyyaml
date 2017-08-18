@@ -71,7 +71,7 @@ local function countindent(line)
 end
 
 local function parsestring(line, stopper)
-  stopper = stopper or ':#'
+  stopper = stopper or ''
   local q = ssub(line, 1, 1)
   if q == ' ' or q == '\t' then
     return parsestring(ssub(line, 2))
@@ -112,20 +112,26 @@ local function parsestring(line, stopper)
     end
     return buf, ssub(line, i+1)
   end
-  if sfind(q, '[%w$%(%)=^~;%+<%/%._%*]') or sfind(line, '^[%-%:][^ ]') then
-    local buf = ''
-    while #line > 0 do
-      local c = ssub(line, 1, 1)
-      if sfind(stopper, c, 1, true) then
-        break
-      else
-        buf = buf..c
-      end
-      line = ssub(line, 2)
+  if q == '-' or q == ':' then
+    if ssub(line, 2, 2) == ' ' or #line == 1 then
+      return nil, line
     end
-    return rtrim(buf), line
   end
-  return nil, line
+  local buf = ''
+  while #line > 0 do
+    local c = ssub(line, 1, 1)
+    if sfind(stopper, c, 1, true) then
+      break
+    elseif c == ':' and (ssub(line, 2, 2) == ' ' or #line == 1) then
+      break
+    elseif c == '#' and (ssub(buf, #buf, #buf) == ' ') then
+      break
+    else
+      buf = buf..c
+    end
+    line = ssub(line, 2)
+  end
+  return rtrim(buf), line
 end
 
 local function isemptyline(line)
@@ -190,7 +196,7 @@ local function parseflowstyle(line, lines)
         line = ','..line
       end
     else
-      local s, rest = parsestring(line, ':#,{}[]')
+      local s, rest = parsestring(line, ',{}[]')
       if not s then
         error('invalid flowstyle line: '..line)
       end
@@ -317,6 +323,14 @@ local function parsescalar(line, lines, indent)
     return true
   elseif v == 'false' or v == 'False' or v == 'FALSE' then
     return false
+  elseif v == '.inf' or v == '.Inf' or v == '.INF' then
+    return math.huge
+  elseif v == '+.inf' or v == '+.Inf' or v == '+.INF' then
+    return math.huge
+  elseif v == '-.inf' or v == '-.Inf' or v == '-.INF' then
+    return -math.huge
+  elseif v == '.nan' or v == '.NaN' or v == '.NAN' then
+    return 0 / 0
   elseif sfind(v, '^[%+%-]?[0-9]+$') or sfind(v, '^[%+%-]?[0-9]+%.$')then
     return tonumber(v)  -- : int
   elseif sfind(v, '^[%+%-]?[0-9]+%.[0-9]+$') then
