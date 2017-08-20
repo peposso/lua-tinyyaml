@@ -15,18 +15,6 @@ local UNESCAPES = {
 };
 
 -------------------------------------------------------------------------------
-local Null = {}
-Null.__index = Null
-Null.__metatable = Null
-function Null.__tostring() return 'yaml.null' end
-function Null.isnull(v)
-  if v == nil then return true end
-  if type(v) == 'table' and getmetatable(v) == Null then return true end
-  return false
-end
-local null = setmetatable({}, Null)
-
--------------------------------------------------------------------------------
 -- utils
 local function select(list, pred)
   local selected = {}
@@ -54,13 +42,87 @@ end
 -------------------------------------------------------------------------------
 -- Implementation.
 --
+local class = {__meta={}}
+function class.__meta.__call(cls, ...)
+  local self = setmetatable({}, cls)
+  if cls.__init then
+    cls.__init(self, ...)
+  end
+  return self
+end
+
+function class.def(base, type, cls)
+  base = base or class
+  local mt = {__metatable=base, __index=base}
+  for k, v in pairs(base.__meta) do mt[k] = v end
+  cls = setmetatable(cls or {}, mt)
+  cls.__index = cls
+  cls.__metatable = cls
+  cls.__type = type
+  cls.__meta = mt
+  return cls
+end
+
+
 local types = {
-  map = {__type='map'},
-  omap = {__type='omap'},
-  pairs = {__type='pairs'},
-  set = {__type='set'},
-  seq = {__type='seq'},
+  null = class:def('null'),
+  map = class:def('map'),
+  omap = class:def('omap'),
+  pairs = class:def('pairs'),
+  set = class:def('set'),
+  seq = class:def('seq'),
+  timestamp = class:def('timestamp'),
 }
+
+local Null = types.null
+function Null.__tostring() return 'yaml.null' end
+function Null.isnull(v)
+  if v == nil then return true end
+  if type(v) == 'table' and getmetatable(v) == Null then return true end
+  return false
+end
+local null = Null()
+
+function types.timestamp:__init(y, m, d, h, i, s, f, z)
+  self.year = tonumber(y)
+  self.month = tonumber(m)
+  self.day = tonumber(d)
+  self.hour = tonumber(h or 0)
+  self.minute = tonumber(i or 0)
+  self.second = tonumber(s or 0)
+  if type(f) == 'string' and sfind(f, '^%d+$') then
+    self.fraction = tonumber(f) * math.pow(10, 3 - #f)
+  elseif f then
+    self.fraction = f
+  else
+    self.fraction = 0
+  end
+  self.timezone = z
+end
+
+function types.timestamp:__tostring()
+  return string.format(
+    '%04d-%02d-%02dT%02d:%02d:%02d.%03d%s',
+    self.year, self.month, self.day,
+    self.hour, self.minute, self.second, self.fraction,
+    self:gettz())
+end
+
+function types.timestamp:gettz()
+  if not self.timezone then
+    return ''
+  end
+  if self.timezone == 0 then
+    return 'Z'
+  end
+  local sign = self.timezone > 0
+  local z = sign and self.timezone or -self.timezone
+  local zh = math.floor(z)
+  local zi = (z - zh) * 60
+  return string.format(
+    '%s%02d:%02d', sign and '+' or '-', zh, zi)
+end
+
 
 local function countindent(line)
   local _, j = sfind(line, '^%s+')
@@ -282,12 +344,56 @@ local function parseblockstylestring(line, lines, indent)
   return table.concat(s, sep)..string.rep('\n', eonl)
 end
 
+local function parsetimestamp(line)
+  local _, p1, y, m, d = sfind(line, '^(%d%d%d%d)%-(%d%d)%-(%d%d)')
+  if not p1 then
+    return nil, line
+  end
+  if p1 == #line then
+    return types.timestamp(y, m, d), ''
+  end
+  local _, p2, h, i, s = sfind(line, '^[Tt ](%d+):(%d+):(%d+)', p1+1)
+  if not p2 then
+    return types.timestamp(y, m, d), ssub(line, p1+1)
+  end
+  if p2 == #line then
+    return types.timestamp(y, m, d, h, i, s), ''
+  end
+  local _, p3, f = sfind(line, '^%.(%d+)', p2+1)
+  if not p3 then
+    p3 = p2
+    f = 0
+  end
+  local zc = ssub(line, p3+1, p3+1)
+  local _, p4, zs, z = sfind(line, '^ ?([%+%-])(%d+)', p3+1)
+  if p4 then
+    z = tonumber(z)
+    local _, p5, zi = sfind(line, '^:(%d+)', p4+1)
+    if p5 then
+      z = z + tonumber(zi) / 60
+    end
+    z = zs == '-' and -tonumber(z) or tonumber(z)
+  elseif zc == 'Z' then
+    p4 = p3 + 1
+    z = 0
+  else
+    p4 = p3
+    z = false
+  end
+  return types.timestamp(y, m, d, h, i, s, f, z), ssub(line, p4+1)
+end
+
 local function parsescalar(line, lines, indent)
   line = ltrim(line)
   line = gsub(line, '%s*#.*$', '')
 
   if line == '' or line == '~' then
     return null
+  end
+
+  local ts, _ = parsetimestamp(line)
+  if ts then
+    return ts
   end
 
   local s, _ = parsestring(line)
