@@ -2,10 +2,19 @@
 -- tinyyaml - YAML subset parser
 -------------------------------------------------------------------------------
 
+local table = table
+local string = string
 local schar = string.char
 local ssub, gsub = string.sub, string.gsub
 local sfind, smatch = string.find, string.match
 local tinsert, tremove = table.insert, table.remove
+local setmetatable = setmetatable
+local pairs = pairs
+local type = type
+local tonumber = tonumber
+local math = math
+local getmetatable = getmetatable
+local error = error
 
 local UNESCAPES = {
   ['0'] = "\x00", z = "\x00", N    = "\x85",
@@ -51,14 +60,14 @@ function class.__meta.__call(cls, ...)
   return self
 end
 
-function class.def(base, type, cls)
+function class.def(base, typ, cls)
   base = base or class
   local mt = {__metatable=base, __index=base}
   for k, v in pairs(base.__meta) do mt[k] = v end
   cls = setmetatable(cls or {}, mt)
   cls.__index = cls
   cls.__metatable = cls
-  cls.__type = type
+  cls.__type = typ
   cls.__meta = mt
   return cls
 end
@@ -619,7 +628,7 @@ function parsemap(line, lines, indent)
     end
 
     if map[key] ~= nil then
-      print("found a duplicate key '"..key.."' in line: "..line)
+      -- print("found a duplicate key '"..key.."' in line: "..line)
       local suffix = 1
       while map[key..'__'..suffix] do
         suffix = suffix + 1
@@ -730,17 +739,19 @@ end
 
 local function parse(source)
   local lines = {}
-  for line in string.gmatch(source..'\n', '(.-)\n') do
+  for line in string.gmatch(source .. '\n', '(.-)\r?\n') do
     tinsert(lines, line)
   end
+
   local docs = parsedocuments(lines)
   if #docs == 1 then
     return docs[1]
   end
+
   return docs
 end
 
 return {
-  null = null,
+  version = 0.1,
   parse = parse,
 }
