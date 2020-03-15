@@ -15,11 +15,10 @@ busted.describe("example", function()
       'Ben-Kiki',
       t.map['Block style'].Oren
     )
-    -- not supported
-    -- assert.same(
-    --   'Evans',
-    --   t.map['Flow style'].Clark
-    -- )
+    assert.same(
+      'Evans',
+      t.map['Flow style'].Clark
+    )
   end)
 
   busted.it("omap", function()
