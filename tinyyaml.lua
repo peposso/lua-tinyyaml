@@ -706,7 +706,7 @@ local function parsedocuments(lines)
     end
     if docright then
       if (not sfind(docright, '^%s+$') and
-          not sfind(docright, '^%s+')) then
+          not sfind(docright, '^%s+#')) then
         tinsert(root, parsescalar(docright, lines))
       end
     elseif #lines == 0 or startswith(line, '---') then
