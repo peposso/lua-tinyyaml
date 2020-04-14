@@ -502,6 +502,11 @@ local function parseseq(line, lines, indent)
       local indent2 = j
       lines[1] = string.rep(' ', indent2)..rest
       tinsert(seq, parsemap('', lines, indent2))
+    elseif sfind(rest, '^%-%s+') then
+      -- Inline nested seq
+      local indent2 = j
+      lines[1] = string.rep(' ', indent2)..rest
+      tinsert(seq, parseseq('', lines, indent2))
     elseif isemptyline(rest) then
       tremove(lines, 1)
       if #lines == 0 then
