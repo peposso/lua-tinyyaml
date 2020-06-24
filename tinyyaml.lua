@@ -219,6 +219,18 @@ local function equalsline(line, needle)
   return startswith(line, needle) and isemptyline(ssub(line, #needle+1))
 end
 
+local function checkdupekey(map, key)
+  if map[key] ~= nil then
+    -- print("found a duplicate key '"..key.."' in line: "..line)
+    local suffix = 1
+    while map[key..'_'..suffix] do
+      suffix = suffix + 1
+    end
+    key = key ..'_'..suffix
+  end
+  return key
+end
+
 local function parseflowstyle(line, lines)
   local stack = {}
   while true do
@@ -247,6 +259,7 @@ local function parseflowstyle(line, lines)
       if stack[#stack].t == ':' then
         -- map
         local key = tremove(stack)
+        key.v = checkdupekey(stack[#stack].v, key.v)
         stack[#stack].v[key.v] = value.v
       elseif stack[#stack].t == '{' then
         -- set
@@ -641,15 +654,7 @@ function parsemap(line, lines, indent)
       error("failed to classify line: "..line)
     end
 
-    if map[key] ~= nil then
-      -- print("found a duplicate key '"..key.."' in line: "..line)
-      local suffix = 1
-      while map[key..'__'..suffix] do
-        suffix = suffix + 1
-      end
-      key = key ..'_'..suffix
-    end
-
+    key = checkdupekey(map, key)
     line = ltrim(line)
 
     if ssub(line, 1, 1) == '!' then
