@@ -6,6 +6,10 @@ on:
 
 jobs:
   ci:
+    strategy:
+      matrix:
+        luaVersion: ["5.1", "5.2", "5.3", "5.4", "luajit"]
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.3.4
@@ -13,7 +17,9 @@ jobs:
       - uses: leafo/gh-actions-luarocks@v4
 
       - name: install lua rocks
-        run: luarocks install busted luassert
+        run: |
+          luarocks install busted
+          luarocks install luassert
 
       - name: run test
         run: busted spec/
