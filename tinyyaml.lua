@@ -15,6 +15,7 @@ local tonumber = tonumber
 local math = math
 local getmetatable = getmetatable
 local error = error
+local inspect = require("inspect")
 
 local UNESCAPES = {
   ['0'] = "\x00", z = "\x00", N    = "\x85",
@@ -510,7 +511,7 @@ local function parseseq(line, lines, indent)
     end
     local rest = ssub(line, j+1)
 
-    if sfind(rest, '^[^\'\"%s]*:') then
+    if sfind(rest, '^[^\'\"%s]*:%s') then
       -- Inline nested hash
       local indent2 = j
       lines[1] = string.rep(' ', indent2)..rest
