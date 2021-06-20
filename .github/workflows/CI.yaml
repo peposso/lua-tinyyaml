@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  [push, pull_request]
+
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.4
+      - uses: leafo/gh-actions-lua@v8
+      - uses: leafo/gh-actions-luarocks@v4
+
+      - name: install lua rocks
+        run: luarocks install busted luassert
+
+      - name: run test
+        run: busted spec/
