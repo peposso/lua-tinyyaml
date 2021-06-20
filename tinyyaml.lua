@@ -15,7 +15,6 @@ local tonumber = tonumber
 local math = math
 local getmetatable = getmetatable
 local error = error
-local inspect = require("inspect")
 
 local UNESCAPES = {
   ['0'] = "\x00", z = "\x00", N    = "\x85",
