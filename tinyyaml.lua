@@ -545,7 +545,7 @@ local function parseseq(line, lines, indent)
     elseif rest then
       -- Array entry with a value
       tremove(lines, 1)
-      tinsert(seq, parsescalar(rest, lines))
+      tinsert(seq, parsescalar(rest, lines, 0))
     end
   end
   return seq
